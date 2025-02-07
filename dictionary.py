@@ -125,20 +125,22 @@ class AutoEncoder(Dictionary, nn.Module):
 
 
     @classmethod
-    def from_pretrained(cls, path, dtype=t.float, device=None, normalize_decoder=True):
+    def from_pretrained(cls, path, dtype=t.float, device=None, normalize_decoder=True, map_location='cpu'):
         """
-        Load a pretrained autoencoder from a file.
+        Load a pretrained autoencoder from a file with device handling.
         """
-        state_dict = t.load(path)
+        # Load the state dict with the map_location argument
+        state_dict = t.load(path, map_location=map_location)
+        
         dict_size, activation_dim = state_dict["encoder.weight"].shape
         autoencoder = cls(activation_dim, dict_size)
         autoencoder.load_state_dict(state_dict)
 
-        # This is useful for doing analysis where e.g. feature activation magnitudes are important
-        # If training the SAE using the April update, the decoder weights are not normalized
+        # Normalize decoder weights if required
         if normalize_decoder:
             autoencoder.normalize_decoder()
 
+        # Move the model to the specified device if provided
         if device is not None:
             autoencoder.to(dtype=dtype, device=device)
 
