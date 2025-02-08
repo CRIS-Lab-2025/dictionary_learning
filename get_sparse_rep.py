@@ -6,6 +6,8 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from tabulate import tabulate  
 from dictionary import AutoEncoder
 
+# Code to take input from csv and output sparse representation via dictionary learning autoencoder
+
 
 #Load sentences from CSV file
 csv_file = 'sentences.csv'  
