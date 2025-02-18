@@ -76,6 +76,29 @@ class InferenceEngiene():
                 sparse_rep_dict[i][token] = coeffs, indices_of_non_zero
 
         return sparse_rep_dict
+    
+    def get_attention_activations(self, sentences, layer):
+        activation_list = []
+        def attention_hook_fn(module, input, output):
+            """Hook function to capture activations from the attention layer."""
+            activation_list.append(output)
+        layer_to_hook = self.model.gpt_neox.layers[layer].attention
+        attention_hook = layer_to_hook.register_forward_hook(attention_hook_fn)
+        input_ids_batch = self.tokenizer(sentences, return_tensors="pt", padding=True, truncation=True)
+        with torch.no_grad():
+            _ = self.model(**input_ids_batch) 
+        sentence_activations = {}
+        for i, input_ids in enumerate(input_ids_batch["input_ids"]):
+            tokens = self.tokenizer.convert_ids_to_tokens(input_ids)
+            sentence_activations[i] = {}
+            activations = activation_list[0][0][i]
+            for j, token in enumerate(tokens):
+                if token != "<|endoftext|>":
+                    sentence_activations[i][token] = activations[j].cpu()
+        activation_list.clear()
+
+        return sentence_activations
+    
 
 
 
