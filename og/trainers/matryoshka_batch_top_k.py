@@ -1,12 +1,10 @@
 import torch as t
 import torch.nn as nn
-import torch.nn.functional as F
-import einops
 from collections import namedtuple
 from typing import Optional
 from math import isclose
 
-from ..dictionary import Dictionary
+from og.dictionary import Dictionary
 from ..trainers.trainer import (
     SAETrainer,
     get_lr_schedule,

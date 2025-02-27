@@ -1,5 +1,26 @@
 # Dictionary Learning for Transformer Activations
 
+# Running the Training Script
+
+## Overview
+The training script is used to train a sparse autoencoder on a dataset loaded from the Hugging Face Hub. It utilizes a buffer to store activations from a specified layer of the model, and then trains the autoencoder using these activations. No downloads are required. 
+## Instructions
+To use this script, follow these steps:
+
+1. **Modify Parameters**:
+   - Open the `params.json` file, which contains default parameters optimized for a 24GB GPU.
+   - Update the values in `params.json` to match your specific use case, such as dataset paths, model configurations, or training hyperparameters.
+
+2. **Run the Training Script**:
+   - Execute the script from the root directory of your project using the following command:
+     ```
+     python training_script.py
+     ```
+
+## Note
+Ensure that all necessary dependencies are installed before running the script.
+
+
 This project extracts activations from a specific MLP layer of the Pythia-70m-deduped model, processes them using a pretrained dictionary (autoencoder), and analyzes the sparse representations.
 
 ## Features

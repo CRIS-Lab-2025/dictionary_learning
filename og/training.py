@@ -14,10 +14,6 @@ from tqdm import tqdm
 
 import wandb
 
-from .dictionary import AutoEncoder
-from .evaluation import evaluate
-from .trainers.standard import StandardTrainer
-
 
 def new_wandb_process(config, log_queue, entity, project):
     wandb.init(entity=entity, project=project, config=config, name=config["wandb_name"])

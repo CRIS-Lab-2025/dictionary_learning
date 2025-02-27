@@ -1,0 +1,42 @@
+{
+  "context_length": {
+    "value": 128,
+    "description": "Length of the input context. All of these parameters are the default values used by the codeowners. Worked on 24GB GPU RAM."
+  },
+  "llm_batch_size": {
+    "value": 512,
+    "description": "Batch size for the language model inference"
+  },
+  "sae_batch_size": {
+    "value": 8192,
+    "description": "Batch size for the sparse encoder training"
+  },
+  "device": {
+    "value": "cuda",
+    "description": "Device to use for computations"
+  },
+  "save_dir": {
+    "value": "sae_results/",
+    "description": "Directory to save results"
+  },
+  "model_name": {
+    "value": "EleutherAI/pythia-70m-deduped",
+    "description": "Name of the pre-trained model to use"
+  },
+  "random_seed": {
+    "value": 42,
+    "description": "Random seed for reproducibility"
+  },
+  "layer": {
+    "value": 3,
+    "description": "Layer of the model to extract activations from. Layer lengths can be found here: https://huggingface.co/EleutherAI"
+  },
+  "dataset_name": {
+    "value": "monology/pile-uncopyrighted",
+    "description": "Name of the dataset to use. The value will be loaded from the Huggingface hub."
+  },
+  "num_tokens": {
+    "value": 10000,
+    "description": "Number of tokens to process"
+  }
+}
