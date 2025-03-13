@@ -1,3 +1,5 @@
+from email.base64mime import decode
+
 import torch
 import pandas as pd
 import numpy as np
@@ -5,13 +7,13 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from dictionary import AutoEncoder
 
 
-class Pythia70Model():
+class Pythia70Model:
 
-    def __init__(self, dictionaries) -> None:
+    def __init__(self) -> None:
         self.model = AutoModelForCausalLM.from_pretrained('EleutherAI/pythia-70m-deduped')
         tokenizer = AutoTokenizer.from_pretrained('EleutherAI/pythia-70m-deduped')
         self.tokenizer = tokenizer
-        self.dictionaries = dictionaries
+        # self.dictionaries = dictionaries
 
 
     def layerwise_sparse_reps(self, input):
@@ -32,32 +34,93 @@ class Pythia70Model():
 
         sparse_reps = []
 
-        for dict in self.dictionaries:
-            sparse_reps.append(dict.encode(acts[i+1]).detach())
+        # for dict in self.dictionaries:
+        #     sparse_reps.append(dict.encode(acts[i+1]).detach())
 
         return sparse_reps
 
-def inject_activations(self, custom_acts, hook_ind):
-    input_len = custom_acts.shape[1]
-    dummy_ids = torch.zeros((1, input_len), dtype=torch.int64)
-    acts = []
-    gpt_neox = self.model.base_model
-    rotary_emb = gpt_neox.rotary_emb 
-    with torch.no_grad():
-        hidden_states = gpt_neox.embed_in(dummy_ids) 
-        position_ids = torch.arange(dummy_ids.size(1), dtype=torch.long, device=input_ids.device).unsqueeze(0)
-        position_embeddings = rotary_emb(hidden_states, position_ids)
-        for i in range(6):
-            layer = gpt_neox.layers[i]
-            if i == hook_ind:
-                acts = []
-                hidden_states = custom_acts
-                acts.append(hidden_states.squeeze(0))
-            
-            hidden_states = layer(hidden_states, position_embeddings=position_embeddings)[0] 
-            acts.append(hidden_states.squeeze(0))
+    def inject_activations(self, custom_acts, hook_ind):
+        input_len = custom_acts.shape[1]
+        dummy_ids = torch.zeros((1, input_len), dtype=torch.int64)
+        acts = []
+        gpt_neox = self.model.base_model
+        rotary_emb = gpt_neox.rotary_emb
+        with torch.no_grad():
+            hidden_states = gpt_neox.embed_in(dummy_ids)
+            position_ids = torch.arange(dummy_ids.size(1), dtype=torch.long, device=input_ids.device).unsqueeze(0)
+            position_embeddings = rotary_emb(hidden_states, position_ids)
+            for i in range(6):
+                layer = gpt_neox.layers[i]
+                if i == hook_ind:
+                    acts = []
+                    hidden_states = custom_acts
+                    acts.append(hidden_states.squeeze(0))
 
-    return acts
+                hidden_states = layer(hidden_states, position_embeddings=position_embeddings)[0]
+                acts.append(hidden_states.squeeze(0))
+
+        return acts
+
+    def clamping(self, input_tokens, dictionary_path, do_clamping = True, clamping_layer = 3, clamping_index = 0, clamping_value = 10.0):
+
+        input_ids = self.tokenizer(input_tokens, return_tensors="pt").input_ids
+        final_layer_norm = self.model.gpt_neox.final_layer_norm
+        gpt_neox = self.model.base_model
+        rotary_emb = gpt_neox.rotary_emb
+
+
+
+        ae = AutoEncoder.from_pretrained(
+            dictionary_path,
+            map_location=torch.device('cpu')
+        )
+
+        # Autoregressively generate 5 new tokens
+        for _ in range(5):
+            with torch.no_grad():
+                hidden_states = gpt_neox.embed_in(input_ids)
+                position_ids = torch.arange(input_ids.size(1), dtype=torch.long, device=input_ids.device).unsqueeze(0)
+                position_embeddings = rotary_emb(hidden_states, position_ids)
+                # How many layers
+                for i in range(6):
+                    layer = gpt_neox.layers[i]
+                    hidden_states = layer(hidden_states, position_embeddings=position_embeddings)[0]
+                    # What is the shape of this hidden states?
+                    # ( batch, num_input_tokens, model_dim = 512 )
+
+                    if i == clamping_layer and do_clamping:
+                        # I'll only modify the activations corresponding to the last topken in the hidden states cause of
+                        # autoregressive nture of LLMs.
+                        # ( batch, num_input_tokens, model_dim = 512 )
+                        last_token = hidden_states[:, -1, :]
+                        # Send it to the AE
+                        sparse_rep = ae.encode(last_token).detach().cpu()
+                        # Clamp the requisite index
+                        sparse_rep[:, clamping_index] = max(sparse_rep[:, clamping_index], clamping_value)
+                        # Get activations back
+                        last_token = ae.decode(sparse_rep)
+
+                        # Modify the hidden states vector
+                        hidden_states[:, -1, :] = last_token
+
+                # Compare obtained hs to model
+                post_norm = final_layer_norm(hidden_states)
+                logits = self.model.embed_out(post_norm)
+                probs = torch.argmax(logits, dim=-1)
+                # Decode the lat token
+                # 0 indicates bathc here.
+                next_token = probs[0][-1]
+                print("Next token", next_token)
+                next_token_tensor = next_token.unsqueeze(0)
+                next_token_tensor = next_token_tensor.unsqueeze(0)
+                input_ids = torch.cat((input_ids, next_token_tensor), dim=1)
+
+        output = self.tokenizer.batch_decode(input_ids)
+        print(output)
+
+
+
+
 
 
 def get_all_hook_points(model):
