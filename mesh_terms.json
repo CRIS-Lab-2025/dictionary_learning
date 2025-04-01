@@ -1,0 +1,26 @@
+{
+  "Anatomy": {
+    "Extremities": {},
+    "Cartilage": {"code": "A02.165"},
+    "Liver": {"code": "A03.620"},
+    "Lung": {"code": "A04.411"}
+  },
+  "Diseases": {
+    "Infections": {"code": "C01"},
+    "Cysts": {"code": "C04.182"},
+    "Arm Injuries": {"code": "C26.088"},
+    "Drowning": {"code": "C26.304"}
+  },
+  "Chemicals and Drugs": {
+    "Organic Chemicals": {"code": "D02"},
+    "Micelles": {"code": "D05.374"},
+    "Carbohydrates": {"code": "D09"},
+    "Biological Factors": {"code": "D23"}
+  },
+  "Phenomena and Processes": {
+    "Physical Phenomena": {"code": "G01"},
+    "Metabolism": {"code": "G03"},
+    "Algorithms": {"code": "G17.035"},
+    "Fourier Analysis": {"code": "G17.226"}
+  }
+}
