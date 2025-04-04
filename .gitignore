@@ -1,3 +1,7 @@
+# data sources too large for github
+desc2025.xml
+
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
