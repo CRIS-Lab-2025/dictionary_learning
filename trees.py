@@ -29,7 +29,7 @@ class TreeMaker():
                 name = n
                 break
 
-        return namex
+        return name
 
 
     def tree_from_key(self, keyword):

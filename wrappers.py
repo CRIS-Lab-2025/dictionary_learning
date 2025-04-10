@@ -44,6 +44,20 @@ class GPTneoX_DenseWrapper():
             return acts, toks
         else:
             raise NotImplementedError()
+        
+    def tokenize_inputs(self, inputs):
+        tokens = self.tokenizer(
+            inputs,
+            padding=True,           
+            truncation=True,
+            return_tensors='pt'
+        )
+
+        token_list = []
+        for ids in tokens['input_ids']:
+            token_list.append(self.tokenizer.convert_ids_to_tokens(ids))
+
+        return token_list
     
 class ActivationWrapper():
 
@@ -132,3 +146,5 @@ class DictionaryWrapper():
             return GPTneoX_SparseWrapper((self.mod, self.tokenizer), (layer, typ), dictionary)
         else:
             raise NotImplementedError()
+        
+    
