@@ -10,8 +10,6 @@ class GPTneoX_DenseWrapper():
     def __init__(self, mod, layer_info) -> None:
         
         self.model, self.tokenizer = mod
-        self.tokenizer.add_special_tokens({'pad_token': '[PAD]'})
-        self.model.resize_token_embeddings(len(self.tokenizer))
         layer_ind, typ = layer_info
         if typ == 'attn':  
             layer = self.model.base_model.layers[layer_ind].attention
@@ -36,12 +34,33 @@ class GPTneoX_DenseWrapper():
         with torch.no_grad():
             self.model(**inputs)
 
+        print(torch.stack(self.act).shape)
         acts = torch.stack(self.act).squeeze(0)
 
         if tokens == 'last':
             return acts[torch.arange(len(sentences)), toks-1 , :], toks
         elif tokens == 'all':
             return acts, toks
+        else:
+            raise NotImplementedError()
+        
+    
+class ActivationWrapper():
+
+    def __init__(self, mod) -> None:
+        self.mod = AutoModelForCausalLM.from_pretrained(mod)
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
+        self.mod = self.mod.to(device)
+        tokenizer = AutoTokenizer.from_pretrained(mod)
+        tokenizer.add_special_tokens({'pad_token': '[PAD]'})
+        self.mod.resize_token_embeddings(len(tokenizer))
+        self.tokenizer = tokenizer
+        self.model_name = mod.split('/')[-1]
+
+    def make_layer_wrapper(self, layer, typ):
+
+        if type(self.mod).__name__.endswith("GPTNeoXForCausalLM"):
+            return GPTneoX_DenseWrapper((self.mod, self.tokenizer), (layer, typ))
         else:
             raise NotImplementedError()
         
@@ -59,22 +78,24 @@ class GPTneoX_DenseWrapper():
 
         return token_list
     
-class ActivationWrapper():
+    def batch_logits(self, inp, tokens = 'all'):
 
-    def __init__(self, mod) -> None:
-        self.mod = AutoModelForCausalLM.from_pretrained(mod)
-        device = torch.device("cuda" if torch.cuda.is_available() else "cpu") 
-        self.mod = self.mod.to(device)
-        tokenizer = AutoTokenizer.from_pretrained(mod)
-        self.tokenizer = tokenizer
-        self.model_name = mod.split('/')[-1]
+        inputs = self.tokenizer(inp, return_tensors="pt", padding=True, truncation=False)
+        toks = inputs["attention_mask"].sum(dim=1)
+        inputs = {key: val.to(self.mod.device) for key, val in inputs.items()}
 
-    def make_layer_wrapper(self, layer, typ):
+        with torch.no_grad():
+            outputs = self.mod(**inputs)
+            logits = outputs.logits
 
-        if type(self.mod).__name__.endswith("GPTNeoXForCausalLM"):
-            return GPTneoX_DenseWrapper((self.mod, self.tokenizer), (layer, typ))
-        else:
-            raise NotImplementedError()
+        if tokens == 'all':
+            return logits
+        
+        elif tokens == 'last':
+            return logits[torch.arange(len(inp)), toks-1 , :]
+
+
+
 
 class GPTneoX_SparseWrapper():
 
@@ -125,6 +146,7 @@ class GPTneoX_SparseWrapper():
             return self.dictionary.encode(acts), toks
         else:
             raise NotImplementedError()
+
 
 class DictionaryWrapper():
 
