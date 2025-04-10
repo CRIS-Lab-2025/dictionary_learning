@@ -63,7 +63,10 @@ class ActivationWrapper():
             return GPTneoX_DenseWrapper((self.mod, self.tokenizer), (layer, typ))
         else:
             raise NotImplementedError()
-        
+
+    def get_vocab(self):
+        return self.tokenizer.get_vocab()
+
     def tokenize_inputs(self, inputs):
         tokens = self.tokenizer(
             inputs,
