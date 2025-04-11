@@ -31,13 +31,13 @@ class Record():
     def get_ancestors(self,group_by_depth=False):
         
 
-        anc = nx.ancestors(self.tree, self.ui)
+        anc = nx.ancestors(self.tree, self)
         
         if group_by_depth:
             
             groups = []
             
-            subtree = self.tree.subgraph(anc+self)
+            subtree = self.tree.subgraph(anc|{self}).reverse()
             
             for d in anc:
                 depth = nx.shortest_path_length(subtree, source=self, target=d)
@@ -47,8 +47,10 @@ class Record():
                         groups.append([])
                 
                 groups[depth-1].append(d)
+                
+            return groups
         
-        return anc
+        return list(anc)
     
     def get_parents(self):
         pred = self.tree.predecessors(self)
@@ -63,13 +65,13 @@ class Record():
     def get_descendants(self,group_by_depth=False):
         
 
-        desc = nx.descendants(self.tree, self.ui)
+        desc = nx.descendants(self.tree, self)
         
         if group_by_depth:
             
             groups = []
             
-            subtree = self.tree.subgraph(desc+self)
+            subtree = self.tree.subgraph(desc|{self})
             
             for d in desc:
                 depth = nx.shortest_path_length(subtree, source=self, target=d)
@@ -79,8 +81,10 @@ class Record():
                         groups.append([])
                 
                 groups[depth-1].append(d)
+                
+            return groups
         
-        return desc
+        return list(desc)
     
     
     def __str__(self):
