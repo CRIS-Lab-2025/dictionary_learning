@@ -110,7 +110,7 @@ class Tree():
             name = record.find("DescriptorName/String").text
             name_lower = name.lower()
             tree_numbers = [tn.text for tn in record.findall("TreeNumberList/TreeNumber")]
-            note = record.find("ScopeNote").text if record.find("ScopeNote") is not None else None
+            note = record.find("ConceptList/Concept/ScopeNote").text if record.find("ConceptList/Concept/ScopeNote") is not None else None
             
             record = Record(name, ui, tree_numbers, note, self.graph)
             
