@@ -19,7 +19,6 @@ class TreeMaker():
         self.mesh_dict = mesh_terms
     
     def tn_to_name(self, tree_number):
-        
         name = ''
 
         for n, temp in self.mesh_dict.items():

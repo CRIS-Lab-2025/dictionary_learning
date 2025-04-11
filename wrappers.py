@@ -1,5 +1,4 @@
 import torch
-import numpy as np
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from dictionary import AutoEncoder
 import os
