@@ -157,7 +157,6 @@ class Tree():
         
     
     def tn_to_name(self, tree_number):
-        
         name = ''
 
         for n, temp in self.mesh_dict.items():
@@ -168,22 +167,31 @@ class Tree():
                 break
 
         return name
-
-
-    def tree_from_key(self, keyword):
+    
+    def tree_from_key(self, keyword, max_depth=None):
         codes = []
         code_names = []
+
         for term, val in self.mesh_dict.items():
-            tn_list = val['TreeNumbers']
-            for num in tn_list:
+            for num in val['TreeNumbers']:
                 if keyword in num:
                     codes.append(num)
                     code_names.append(term)
 
         paired = list(zip(codes, code_names))
+        if not paired:
+            return nx.DiGraph(), []
+
+        # Sort by depth (number of dots)
         paired.sort(key=lambda x: x[0].count('.'))
+        
+        # Filter by max depth if provided
+        if max_depth is not None:
+            paired = [p for p in paired if p[0].count('.') <= max_depth]
+
         codes, code_names = zip(*paired)
         code_set = set(codes)
+
         G = nx.DiGraph()
         for code in codes:
             G.add_node(code)
@@ -192,7 +200,7 @@ class Tree():
                 if parent in code_set:
                     G.add_edge(parent, code)
 
-        return G, code_names
+        return G, list(code_names)
     
 
         
