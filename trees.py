@@ -173,7 +173,6 @@ class Tree():
         code_names = []
 
         for term, val in self.mesh_dict.items():
-            print(type(val))
             for num in val.tree_numbers:
                 if keyword in num:
                     codes.append(num)
