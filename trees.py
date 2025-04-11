@@ -62,7 +62,7 @@ class TreeMaker():
                 if parent in code_set:
                     G.add_edge(parent, code)
 
-        return G, code_names
+        return G, list(code_names)
     
 
         

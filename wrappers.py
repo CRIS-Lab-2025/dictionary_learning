@@ -33,7 +33,6 @@ class GPTneoX_DenseWrapper():
         with torch.no_grad():
             self.model(**inputs)
 
-        print(torch.stack(self.act).shape)
         acts = torch.stack(self.act).squeeze(0)
 
         if tokens == 'last':
