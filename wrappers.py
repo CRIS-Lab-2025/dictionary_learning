@@ -65,7 +65,8 @@ class ActivationWrapper():
             raise NotImplementedError()
 
     def get_vocab(self):
-        return self.tokenizer.get_vocab()
+        temp_dict = self.tokenizer.get_vocab()
+        return {v: k for k, v in temp_dict.items()}, temp_dict
 
     def tokenize_inputs(self, inputs):
         tokens = self.tokenizer(
