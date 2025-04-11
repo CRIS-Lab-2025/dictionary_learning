@@ -1,5 +1,5 @@
 import torch
-import torch.nn.functional as Fs
+import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from dictionary import AutoEncoder
 import os
