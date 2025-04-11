@@ -173,10 +173,11 @@ class Tree():
         code_names = []
 
         for term, val in self.mesh_dict.items():
-            for num in val['TreeNumbers']:
+            print(type(val))
+            for num in val.tree_numbers:
                 if keyword in num:
                     codes.append(num)
-                    code_names.append(term)
+                    code_names.append(val.name)
 
         paired = list(zip(codes, code_names))
         if not paired:

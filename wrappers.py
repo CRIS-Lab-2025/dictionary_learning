@@ -1,4 +1,5 @@
 import torch
+import torch.nn.functional as Fs
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from dictionary import AutoEncoder
 import os
@@ -94,6 +95,14 @@ class ActivationWrapper():
         
         elif tokens == 'last':
             return logits[torch.arange(len(inp)), toks-1 , :]
+        
+    def generate_next_token(self, inp, num_samples, temp):
+
+        log = self.batch_logits(inp, tokens='last') / temp
+        probs = F.softmax(log, dim=-1)
+        sampled_token_ids = torch.multinomial(probs, num_samples=num_samples, replacement=True) 
+
+        return sampled_token_ids
 
 
 
