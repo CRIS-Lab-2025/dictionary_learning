@@ -1,6 +1,8 @@
+import random
 from typing import Dict, List
 import xml.etree.ElementTree as ET
 import networkx as nx
+from networkx.algorithms.traversal.depth_first_search import dfs_tree
 
 
 class Record():
@@ -87,6 +89,16 @@ class Record():
         return list(desc)
     
     
+    def get_subtree(self, max_depth=None):
+        """
+        Gets a subtree of max_depth with the current node as root.
+        """
+        
+        return dfs_tree(self.tree, self, depth_limit=max_depth)
+        
+        
+    
+    
     def __str__(self):
         return f"Record(name={self.name}, ui={self.ui})"
 
@@ -158,53 +170,11 @@ class Tree():
         
         return None
     
+    def sample_node(self):
         
+        return random.choice(list(self.graph.nodes()))
     
-    def tn_to_name(self, tree_number):
-        name = ''
-
-        for n, temp in self.mesh_dict.items():
-            tn = temp['TreeNumbers']
-            if tree_number in tn:
-
-                name = n
-                break
-
-        return name
-    
-    def tree_from_key(self, keyword, max_depth=None):
-        codes = []
-        code_names = []
-
-        for term, val in self.mesh_dict.items():
-            for num in val.tree_numbers:
-                if keyword in num:
-                    codes.append(num)
-                    code_names.append(val.name)
-
-        paired = list(zip(codes, code_names))
-        if not paired:
-            return nx.DiGraph(), []
-
-        # Sort by depth (number of dots)
-        paired.sort(key=lambda x: x[0].count('.'))
         
-        # Filter by max depth if provided
-        if max_depth is not None:
-            paired = [p for p in paired if p[0].count('.') <= max_depth]
-
-        codes, code_names = zip(*paired)
-        code_set = set(codes)
-
-        G = nx.DiGraph()
-        for code in codes:
-            G.add_node(code)
-            if '.' in code:
-                parent = code.rsplit('.', 1)[0]
-                if parent in code_set:
-                    G.add_edge(parent, code)
-
-        return G, list(code_names)
     
 
         
