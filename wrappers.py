@@ -4,6 +4,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from dictionary import AutoEncoder
 import os
 from pathlib import Path
+import numpy as np
 
 class GPTneoX_DenseWrapper():
 
@@ -24,12 +25,21 @@ class GPTneoX_DenseWrapper():
             self.act.append(output)
         self.handle = self.layer.register_forward_hook(hook_fn)
 
-    def batch_activations(self, sentences, tokens='all'):
-        
+    def batch_activations(self, sentences, tokens='all', tokenized_prior=False):
         self.act.clear() 
-        inputs = self.tokenizer(sentences, return_tensors="pt", padding=True, truncation=False)
-        toks = inputs["attention_mask"].sum(dim=1)
-        inputs = {key: val.to(self.model.device) for key, val in inputs.items()}
+        if tokenized_prior:
+            input_ids, attention_mask = sentences
+            toks = attention_mask.sum(dim=1)
+            inputs = {
+                "input_ids": input_ids.to(self.model.device),
+                "attention_mask": attention_mask.to(self.model.device)
+            }
+            num_sen = input_ids.shape[0]
+        else:
+            inputs = self.tokenizer(sentences, return_tensors="pt", padding=True, truncation=False)
+            toks = inputs["attention_mask"].sum(dim=1)
+            inputs = {key: val.to(self.model.device) for key, val in inputs.items()}
+            num_sen = len(sentences)
 
         with torch.no_grad():
             self.model(**inputs)
@@ -37,11 +47,12 @@ class GPTneoX_DenseWrapper():
         acts = torch.stack(self.act).squeeze(0)
 
         if tokens == 'last':
-            return acts[torch.arange(len(sentences)), toks-1 , :], toks
+            return acts[torch.arange(num_sen), toks-1 , :], toks
         elif tokens == 'all':
             return acts, toks
         else:
             raise NotImplementedError()
+    
         
     
 class ActivationWrapper():
@@ -65,6 +76,12 @@ class ActivationWrapper():
 
     def get_vocab(self):
         return self.tokenizer.get_vocab()
+    
+    def get_reverse_vocab(self):
+
+        temp = self.get_vocab()
+        return {v: k for k, v in temp.items()}
+
 
     def tokenize_inputs(self, inputs):
         tokens = self.tokenizer(
@@ -73,12 +90,11 @@ class ActivationWrapper():
             truncation=True,
             return_tensors='pt'
         )
-
         token_list = []
         for ids in tokens['input_ids']:
             token_list.append(self.tokenizer.convert_ids_to_tokens(ids))
 
-        return token_list
+        return tokens, token_list
     
     def batch_logits(self, inp, tokens = 'all'):
 
@@ -102,7 +118,41 @@ class ActivationWrapper():
         probs = F.softmax(log, dim=-1)
         sampled_token_ids = torch.multinomial(probs, num_samples=num_samples, replacement=True) 
 
-        return sampled_token_ids
+        vectorized_map = np.vectorize(self.get_reverse_vocab().get)
+        tokens_next = vectorized_map(sampled_token_ids)
+
+
+        return tokens_next
+    
+    def generate_and_prepare(self, inp, num_samples=10, temp=0.5):
+
+        tokens_next = self.generate_next_token(inp, num_samples, temp)
+
+        tokenized_og_batch, toks = self.tokenize_inputs(inp)
+        sen_ten = []
+
+        for i in range(len(inp)):
+            sen = toks[i]
+            if '[PAD]' in sen:
+                before_pad = sen[:sen.index('[PAD]')]
+            else:
+                before_pad = sen
+            for j in range(num_samples):
+                merge = before_pad + [str(tokens_next[i,j])]
+                sen_ten.append(self.tokenizer.convert_tokens_to_ids(merge))
+
+        max_len = max(len(seq) for seq in sen_ten)
+        padded_inputs = [
+            seq + [self.tokenizer.pad_token_id] * (max_len - len(seq)) for seq in sen_ten
+        ]
+
+        final_sen = [self.tokenizer.decode(token_ids, skip_special_tokens=True) for token_ids in sen_ten]
+
+        input_ids = torch.tensor(padded_inputs)
+        attention_mask = (input_ids != self.tokenizer.pad_token_id).long()
+
+        return (input_ids, attention_mask) , final_sen
+
 
 
 
