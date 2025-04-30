@@ -116,17 +116,38 @@ class ActivationWrapper():
 
         log = self.batch_logits(inp, tokens='last') / temp
         probs = F.softmax(log, dim=-1)
+        eps = 1e-12
+        clamped = probs.clamp(min=eps)
+        entropy = -(clamped * clamped.log()).sum(dim=-1)
+        entropy = entropy.unsqueeze(1).expand(-1, num_samples) 
+
         sampled_token_ids = torch.multinomial(probs, num_samples=num_samples, replacement=True) 
+        sampled_probs = torch.gather(probs, dim=1, index=sampled_token_ids)   
 
         vectorized_map = np.vectorize(self.get_reverse_vocab().get)
         tokens_next = vectorized_map(sampled_token_ids)
 
 
-        return tokens_next
+        return tokens_next, sampled_probs, entropy
+    
+    def generate_next_token_top2(self, inp):
+
+        log = self.batch_logits(inp, tokens='last')
+        probs = F.softmax(log, dim=-1)
+
+        top2_values, top2_indices = torch.topk(log, 2, dim=-1)
+        top2_probs = probs.gather(dim=-1, index=top2_indices)
+        top2_probs_sum = top2_probs.sum(dim=-1, keepdim=True)
+        top2_probs = top2_probs / top2_probs_sum  
+
+        vectorized_map = np.vectorize(self.get_reverse_vocab().get)
+        tokens_next = vectorized_map(top2_indices)
+
+        return tokens_next, top2_probs
     
     def generate_and_prepare(self, inp, num_samples=10, temp=0.5):
 
-        tokens_next = self.generate_next_token(inp, num_samples, temp)
+        tokens_next, sampled_probs, entropy = self.generate_next_token(inp, num_samples, temp)
 
         tokenized_og_batch, toks = self.tokenize_inputs(inp)
         sen_ten = []
@@ -147,12 +168,55 @@ class ActivationWrapper():
         ]
 
         final_sen = [self.tokenizer.decode(token_ids, skip_special_tokens=True) for token_ids in sen_ten]
+        sampled_probs = sampled_probs.flatten().tolist()
+        entropy = entropy.flatten().tolist()
 
         input_ids = torch.tensor(padded_inputs)
         attention_mask = (input_ids != self.tokenizer.pad_token_id).long()
 
-        return (input_ids, attention_mask) , final_sen
+        return (input_ids, attention_mask) , final_sen, sampled_probs, entropy
 
+    def generate_and_prepare_top2(self, inp):
+
+        tokens_next, sampled_probs = self.generate_next_token_top2(inp)
+
+        tokenized_og_batch, toks = self.tokenize_inputs(inp)
+        sen_ten = []
+
+        for i in range(len(inp)):
+            sen = toks[i]
+            if '[PAD]' in sen:
+                before_pad = sen[:sen.index('[PAD]')]
+            else:
+                before_pad = sen
+            for j in range(2):
+                merge = before_pad + [str(tokens_next[i,j])]
+                sen_ten.append(self.tokenizer.convert_tokens_to_ids(merge))
+
+        max_len = max(len(seq) for seq in sen_ten)
+        padded_inputs = [
+            seq + [self.tokenizer.pad_token_id] * (max_len - len(seq)) for seq in sen_ten
+        ]
+
+        final_sen = [self.tokenizer.decode(token_ids, skip_special_tokens=True) for token_ids in sen_ten]
+        sampled_probs = sampled_probs.flatten().tolist()
+
+        input_ids = torch.tensor(padded_inputs)
+        attention_mask = (input_ids != self.tokenizer.pad_token_id).long()
+
+        return (input_ids, attention_mask) , final_sen, sampled_probs
+
+
+    def prob_of_generation(self, sens, temperature):
+        inputs = self.tokenizer(sens, padding=True, truncation=True, return_tensors="pt")
+        toks = inputs["attention_mask"].sum(dim=1)
+        input_ids = inputs['input_ids']
+
+        log = self.batch_logits(sens, tokens='all') / temperature
+        probs = F.softmax(log, dim=-1)
+
+        return probs, input_ids
+        
 
 
 
