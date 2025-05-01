@@ -130,20 +130,20 @@ class ActivationWrapper():
 
         return tokens_next, sampled_probs, entropy
     
-    def generate_next_token_top2(self, inp):
+    def generate_next_token_top_n(self, inp, n):
 
         log = self.batch_logits(inp, tokens='last')
         probs = F.softmax(log, dim=-1)
 
-        top2_values, top2_indices = torch.topk(log, 2, dim=-1)
-        top2_probs = probs.gather(dim=-1, index=top2_indices)
-        top2_probs_sum = top2_probs.sum(dim=-1, keepdim=True)
-        top2_probs = top2_probs / top2_probs_sum  
+        top_values, top_indices = torch.topk(log, n, dim=-1)
+        top_probs = probs.gather(dim=-1, index=top_indices)
+        top_probs_sum = top_probs.sum(dim=-1, keepdim=True)
+        top_probs = top_probs / top_probs_sum  
 
         vectorized_map = np.vectorize(self.get_reverse_vocab().get)
-        tokens_next = vectorized_map(top2_indices)
+        tokens_next = vectorized_map(top_indices)
 
-        return tokens_next, top2_probs
+        return tokens_next, top_probs
     
     def generate_and_prepare(self, inp, num_samples=10, temp=0.5):
 
@@ -176,9 +176,9 @@ class ActivationWrapper():
 
         return (input_ids, attention_mask) , final_sen, sampled_probs, entropy
 
-    def generate_and_prepare_top2(self, inp):
+    def generate_and_prepare_top_n(self, inp, n):
 
-        tokens_next, sampled_probs = self.generate_next_token_top2(inp)
+        tokens_next, sampled_probs = self.generate_next_token_top_n(inp, n)
 
         tokenized_og_batch, toks = self.tokenize_inputs(inp)
         sen_ten = []
@@ -189,7 +189,7 @@ class ActivationWrapper():
                 before_pad = sen[:sen.index('[PAD]')]
             else:
                 before_pad = sen
-            for j in range(2):
+            for j in range(n):
                 merge = before_pad + [str(tokens_next[i,j])]
                 sen_ten.append(self.tokenizer.convert_tokens_to_ids(merge))
 
